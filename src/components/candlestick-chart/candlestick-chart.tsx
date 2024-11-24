@@ -28,22 +28,15 @@ const CandlestickChart = () => {
     // Parse the Data
     const ticker = tickerData.data as any;
 
-    const newticker = d3.utcDay
-    .range(new Date(ticker.at(0).Date), new Date(ticker.at(-1).Date))
-    .filter(d => {
-      return d.getUTCDay() !== 0 && d.getUTCDay() !== 6;
-    })
-    const days = d3.utcMonday
-          .every(width > 720 ? 1 : 2)
-          .range(new Date(ticker.at(0).Date), new Date(ticker.at(-1).Date))
-    console.log("🚀 ~ file: candlestick-chart.tsx:70 ~ useEffect ~ newticker:", days)
-
+    // Add 1 day to the last date
+    const xScaleBandMaxDate = new Date(ticker.at(-1).Date);
+    xScaleBandMaxDate.setDate(xScaleBandMaxDate.getDate() + 1);
 
     // X axis
     const x = d3
     .scaleBand()
     .domain(d3.utcDay
-      .range(new Date(ticker.at(0).Date), new Date(ticker.at(-1).Date))
+      .range(new Date(ticker.at(0).Date), xScaleBandMaxDate)
       .filter(d => d.getUTCDay() !== 0 && d.getUTCDay() !== 6)
     )
     .range([margin.left, width - margin.right])
@@ -64,15 +57,36 @@ const CandlestickChart = () => {
       .tickFormat(d3.utcFormat("%-m/%-d")))
     .call(g => g.select(".domain").remove());
 
-  svg.append("g")
-    .attr("transform", `translate(${margin.left},0)`)
-    .call(d3.axisLeft(y)
-      .tickFormat(d3.format("$~f"))
-      .tickValues(d3.scaleLinear().domain(y.domain()).ticks()))
-    .call(g => g.selectAll(".tick line").clone()
-      .attr("stroke-opacity", 0.2)
-      .attr("x2", width - margin.left - margin.right))
-    .call(g => g.select(".domain").remove());
+    svg.append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y)
+        .tickFormat(d3.format("$~f"))
+        .tickValues(d3.scaleLinear().domain(y.domain()).ticks()))
+      .call(g => g.selectAll(".tick line").clone()
+        .attr("stroke-opacity", 0.2)
+        .attr("x2", width - margin.left - margin.right))
+      .call(g => g.select(".domain").remove());
+
+    // Create a group for each day of data, and append two lines to it.
+    const g = svg.append("g")
+      .attr("stroke-linecap", "round")
+      .attr("stroke", "black")
+      .selectAll("g")
+      .data(ticker)
+      .join("g")
+      .attr("transform", d => `translate(${x(new Date(d.Date))},0)`);
+
+    // g.append("line")
+    //   .attr("y1", d => y(d.Low))
+    //   .attr("y2", d => y(d.High));
+
+    g.append("line")
+      .attr("y1", d => y(d.Open))
+      .attr("y2", d => y(d.Close))
+      .attr("stroke-width", x.bandwidth())
+      .attr("stroke", d => d.Open > d.Close ? d3.schemeSet1[0]
+          : d.Close > d.Open ? d3.schemeSet1[2]
+          : d3.schemeSet1[8]);
 
     }, []);
 
